@@ -1,8 +1,11 @@
 import torch
 from torch.nn import functional as F
-from models.flowestimator import FlowEstimator
+from models.Flowestimator import FlowEstimator
 import pytorch_lightning as pl
-from dataloader.sintelloader import  SintelLoader
+from utils import warper
+from dataloader.sintelloader import SintelLoader
+from utils.photometricloss import photometricloss
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 class CoolSystem(pl.LightningModule):
@@ -16,17 +19,16 @@ class CoolSystem(pl.LightningModule):
 
     def training_step(self, batch, batch_nb):
         # REQUIRED
-        x = batch['displacement']
-        flow = self.forward(x)
-        loss = F.mse_loss(flow, y)
-        tensorboard_logs = {'train_loss': loss}
+        flow, occlusion = self.forward(batch['displacement'])
+        loss = photometricloss(batch, flow, occlusion)
+        tensorboard_logs = {'photometric_loss': loss}
         return {'loss': loss, 'log': tensorboard_logs}
 
     def validation_step(self, batch, batch_nb):
         # OPTIONAL
-        x, y = batch
-        y_hat = self.forward(x)
-        return {'val_loss': F.cross_entropy(y_hat, y)}
+        flow, occlusion = self.forward(batch['displacement'])
+        loss = photometricloss(batch, flow, occlusion)
+        return {'val_loss': loss}
 
     def validation_end(self, outputs):
         # OPTIONAL
@@ -38,7 +40,9 @@ class CoolSystem(pl.LightningModule):
         # REQUIRED
         # can return multiple optimizers and learning_rate schedulers
         # (LBFGS it is automatically supported, no need for closure function)
-        return torch.optim.Adam(self.parameters(), lr=0.02)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.02)
+        scheduler = ReduceLROnPlateau(optimizer)
+        return [optimizer,],[scheduler,]
 
     @pl.data_loader
     def train_dataloader(self):
