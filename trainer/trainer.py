@@ -8,9 +8,9 @@ from utils.photometricloss import photometricloss
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
-class CoolSystem(pl.LightningModule):
+class FlowTrainer(pl.LightningModule):
     def __init__(self):
-        super(CoolSystem, self).__init__()
+        super(FlowTrainer, self).__init__()
         # not the best model...
         self.deepflow = FlowEstimator()
 

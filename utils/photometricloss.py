@@ -1,19 +1,9 @@
 import torch
 from utils.warper import warper
 
-def photometricloss(batch, flow, occlusion):
-    def robustloss(diff, eps=1e-2, q=4e-1):
-        return torch.pow(torch.abs(diff) + eps, q)
-    I1 = batch['frame1']
-    I2 = batch['frame2']
-    _I1 = warper(flow, batch['frame2'])
-    occdiff = 1 - occlusion
-    num = torch.sum(robustloss(I1 - _I1),1) * occdiff
-    deno = torch.sum(occdiff)
-    return torch.sum(num/deno)
 
-
-
-
-
-
+def photometricloss(I, I_, occ, eps=1e-2, q=4e-1):
+    error = torch.pow(torch.abs(I - I_) + eps, q) * occ
+    occsum = occ.view(occ.size(0), -1).sum(-1).unsqueeze(-1)
+    error = error.view(error.size(0), -1) / occsum
+    return error.sum()
